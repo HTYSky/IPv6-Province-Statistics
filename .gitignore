@@ -1,0 +1,23 @@
+# macOS and local design artifacts
+.DS_Store
+.superpowers/
+
+# Original business workbooks must remain local
+5月统计数据/
+data/
+
+# .NET and IDE outputs
+.vs/
+**/bin/
+**/obj/
+*.user
+*.suo
+TestResults/
+artifacts/
+release/
+
+# Local runtime data
+logs/
+outputs/
+*.log
+*.zip
