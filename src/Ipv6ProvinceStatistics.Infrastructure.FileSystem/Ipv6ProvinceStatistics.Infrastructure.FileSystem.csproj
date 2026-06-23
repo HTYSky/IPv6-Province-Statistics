@@ -1,0 +1,12 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ipv6ProvinceStatistics.Domain\Ipv6ProvinceStatistics.Domain.csproj" />
+    <ProjectReference Include="..\Ipv6ProvinceStatistics.Application\Ipv6ProvinceStatistics.Application.csproj" />
+  </ItemGroup>
+
+</Project>

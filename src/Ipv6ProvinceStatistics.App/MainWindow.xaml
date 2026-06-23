@@ -1,0 +1,13 @@
+<Window x:Class="Ipv6ProvinceStatistics.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="IPv6 省级统计助手"
+        Width="960"
+        Height="680">
+  <Grid>
+    <TextBlock HorizontalAlignment="Center"
+               VerticalAlignment="Center"
+               FontSize="24"
+               Text="IPv6 省级统计助手" />
+  </Grid>
+</Window>

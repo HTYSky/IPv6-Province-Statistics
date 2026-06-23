@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>IPv6省级统计助手</AssemblyName>
+    <RootNamespace>Ipv6ProvinceStatistics.App</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ipv6ProvinceStatistics.Application\Ipv6ProvinceStatistics.Application.csproj" />
+    <ProjectReference Include="..\Ipv6ProvinceStatistics.Infrastructure.OpenXml\Ipv6ProvinceStatistics.Infrastructure.OpenXml.csproj" />
+    <ProjectReference Include="..\Ipv6ProvinceStatistics.Infrastructure.FileSystem\Ipv6ProvinceStatistics.Infrastructure.FileSystem.csproj" />
+  </ItemGroup>
+</Project>

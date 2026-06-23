@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Ipv6ProvinceStatistics.Domain\Ipv6ProvinceStatistics.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Ipv6ProvinceStatistics.Application\Ipv6ProvinceStatistics.Application.csproj" />
+    <ProjectReference Include="..\..\src\Ipv6ProvinceStatistics.Infrastructure.OpenXml\Ipv6ProvinceStatistics.Infrastructure.OpenXml.csproj" />
+    <ProjectReference Include="..\..\src\Ipv6ProvinceStatistics.Infrastructure.FileSystem\Ipv6ProvinceStatistics.Infrastructure.FileSystem.csproj" />
+  </ItemGroup>
+
+</Project>
