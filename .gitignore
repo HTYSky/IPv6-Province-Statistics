@@ -1,6 +1,7 @@
 # macOS and local design artifacts
 .DS_Store
 .superpowers/
+.worktrees/
 
 # Original business workbooks must remain local
 5月统计数据/
