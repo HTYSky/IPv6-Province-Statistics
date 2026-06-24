@@ -6,22 +6,22 @@ namespace Ipv6ProvinceStatistics.Domain.Reporting;
 public static class MonthTextParser
 {
     private static readonly Regex FullChineseMonthPattern = new(
-        @"(?<!\d)(?<year>20\d{2})年(?<month>0?[1-9]|1[0-2])月",
+        @"(?<![0-9])(?<year>[0-9]{4})年(?<month>[0-9]{1,2})月",
         RegexOptions.CultureInvariant);
 
     private static readonly Regex CompactMonthPattern = new(
-        @"(?<!\d)(?<year>20\d{2})(?<month>0[1-9]|1[0-2])(?!\d)",
+        @"(?<![0-9])(?<year>[0-9]{4})(?<month>[0-9]{2})(?![0-9])",
         RegexOptions.CultureInvariant);
 
     private static readonly Regex PartialMonthPattern = new(
-        @"(?<!\d)(?<month>0?[1-9]|1[0-2])月",
+        @"(?<![0-9年])(?<month>0?[1-9]|1[0-2])月",
         RegexOptions.CultureInvariant);
 
     public static IReadOnlyList<MonthMarker> Extract(string source, string? text)
     {
         if (string.IsNullOrEmpty(text))
         {
-            return [];
+            return Array.AsReadOnly(Array.Empty<MonthMarker>());
         }
 
         var fullCandidates = new List<MarkerCandidate>();
@@ -54,7 +54,7 @@ public static class MonthTextParser
             }
         }
 
-        return markers;
+        return Array.AsReadOnly(markers.ToArray());
     }
 
     private static void AddFullCandidates(

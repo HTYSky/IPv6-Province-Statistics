@@ -14,6 +14,25 @@ public static class MonthResolver
         ReportMonth? selected)
     {
         MonthMarker[] markerList = markers.ToArray();
+        MonthMarker[] invalidMarkers = markerList
+            .Where(marker =>
+                marker.Month is < 1 or > 12 || marker.Year is < 2000 or > 2099)
+            .ToArray();
+
+        if (invalidMarkers.Length > 0)
+        {
+            return Invalid(
+                "MONTH_INVALID",
+                WithSources("A source contains an invalid report month marker.", invalidMarkers));
+        }
+
+        if (selected.HasValue && !IsValid(selected.Value))
+        {
+            return Invalid(
+                "MONTH_INVALID",
+                WithSources("The selected report month is invalid.", markerList));
+        }
+
         (int Year, int Month)[] fullMonths = markerList
             .Where(marker => marker.Year.HasValue)
             .Select(marker => (marker.Year!.Value, marker.Month))
@@ -22,7 +41,9 @@ public static class MonthResolver
 
         if (fullMonths.Length > 1)
         {
-            return Conflict("Sources contain more than one explicit report month.");
+            return Conflict(
+                "Sources contain more than one explicit report month.",
+                markerList.Where(marker => marker.Year.HasValue));
         }
 
         int[] partialMonths = markerList
@@ -38,12 +59,16 @@ public static class MonthResolver
 
             if (partialMonths.Any(partialMonth => partialMonth != month))
             {
-                return Conflict("A month-only marker conflicts with the explicit report month.");
+                return Conflict(
+                    "A month-only marker conflicts with the explicit report month.",
+                    markerList);
             }
 
             if (selected.HasValue && selected.Value != resolved)
             {
-                return Conflict("The selected report month conflicts with the explicit report month.");
+                return Conflict(
+                    "The selected report month conflicts with the explicit report month.",
+                    markerList.Where(marker => marker.Year.HasValue));
             }
 
             return Valid(resolved);
@@ -51,7 +76,9 @@ public static class MonthResolver
 
         if (partialMonths.Length > 1)
         {
-            return Conflict("Sources contain conflicting month-only markers.");
+            return Conflict(
+                "Sources contain conflicting month-only markers.",
+                markerList.Where(marker => !marker.Year.HasValue));
         }
 
         if (partialMonths.Length == 1)
@@ -64,7 +91,9 @@ public static class MonthResolver
 
             if (selected.Value.Month != partialMonth)
             {
-                return Conflict("The selected report month conflicts with the source month.");
+                return Conflict(
+                    "The selected report month conflicts with the source month.",
+                    markerList.Where(marker => !marker.Year.HasValue));
             }
 
             return Valid(selected.Value);
@@ -77,7 +106,25 @@ public static class MonthResolver
 
     private static MonthResolution Valid(ReportMonth month) => new(month, []);
 
-    private static MonthResolution Conflict(string message) => Invalid("MONTH_CONFLICT", message);
+    private static MonthResolution Conflict(
+        string message,
+        IEnumerable<MonthMarker> markers) =>
+        Invalid("MONTH_CONFLICT", WithSources(message, markers));
+
+    private static bool IsValid(ReportMonth month) =>
+        month.Year is >= 2000 and <= 9999 && month.Month is >= 1 and <= 12;
+
+    private static string WithSources(string message, IEnumerable<MonthMarker> markers)
+    {
+        string sources = string.Join(
+            ", ",
+            markers
+                .Select(marker => marker.Source)
+                .Where(source => !string.IsNullOrWhiteSpace(source))
+                .Distinct(StringComparer.Ordinal));
+
+        return sources.Length == 0 ? message : $"{message} Sources: {sources}.";
+    }
 
     private static MonthResolution Invalid(string code, string message) =>
         new(null, [new ValidationIssue(code, message)]);
