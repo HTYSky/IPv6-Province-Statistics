@@ -21,6 +21,24 @@ public static class ReportCalculator
     {
         ArgumentNullException.ThrowIfNull(input);
 
+        try
+        {
+            return CalculateCore(input);
+        }
+        catch (OverflowException)
+        {
+            IReadOnlyList<ValidationIssue> issues = Array.AsReadOnly(
+            [
+                new ValidationIssue(
+                    "FORMULA_NUMERIC_OVERFLOW",
+                    "报表公式计算结果超出可支持的数值范围，请检查输入数据。"),
+            ]);
+            return new FormulaCalculationResult(EmptyValues, issues);
+        }
+    }
+
+    private static FormulaCalculationResult CalculateCore(ProvinceReportInput input)
+    {
         decimal c2 = input[MetricKey.MetroTotal] * GbpsToPbPerDay;
         decimal e2 = input[MetricKey.MetroIpv6] * GbpsToPbPerDay;
         decimal c9 = input[MetricKey.MobileCoreTotal] * GbpsToPbPerDay;

@@ -86,6 +86,34 @@ public sealed class ReportCalculatorTests
         Assert.Empty(result.Values);
     }
 
+    [Fact]
+    public void CalculateReportsNumericOverflowWhenAggregateDenominatorAdditionOverflows()
+    {
+        Dictionary<MetricKey, decimal> values = CreateMetricValues(_ => 1m);
+        values[MetricKey.HumanTotal] = decimal.MaxValue;
+        values[MetricKey.IotTotal] = decimal.MaxValue;
+
+        FormulaCalculationResult result = ReportCalculator.Calculate(new ProvinceReportInput(values));
+
+        AssertNumericOverflow(result);
+        IList<ValidationIssue> issues =
+            Assert.IsAssignableFrom<IList<ValidationIssue>>(result.Issues);
+        Assert.Throws<NotSupportedException>(() =>
+            issues[0] = new ValidationIssue("X", "X"));
+    }
+
+    [Fact]
+    public void CalculateReportsNumericOverflowWhenRatioDivisionOverflows()
+    {
+        Dictionary<MetricKey, decimal> values = CreateMetricValues(_ => 1m);
+        values[MetricKey.HumanTotal] = 0.0000000000000000000000000001m;
+        values[MetricKey.HumanIpv6] = decimal.MaxValue;
+
+        FormulaCalculationResult result = ReportCalculator.Calculate(new ProvinceReportInput(values));
+
+        AssertNumericOverflow(result);
+    }
+
     [Theory]
     [InlineData("C2")]
     [InlineData("C3")]
@@ -198,6 +226,14 @@ public sealed class ReportCalculatorTests
 
     private static ProvinceReportInput CreateInput(Func<MetricKey, decimal> valueFactory) =>
         new(CreateMetricValues(valueFactory));
+
+    private static void AssertNumericOverflow(FormulaCalculationResult result)
+    {
+        Assert.Empty(result.Values);
+        ValidationIssue issue = Assert.Single(result.Issues);
+        Assert.Equal("FORMULA_NUMERIC_OVERFLOW", issue.Code);
+        Assert.Contains("数值", issue.Message, StringComparison.Ordinal);
+    }
 
     private static Dictionary<MetricKey, decimal> CreateMetricValues(
         Func<MetricKey, decimal> valueFactory) =>
