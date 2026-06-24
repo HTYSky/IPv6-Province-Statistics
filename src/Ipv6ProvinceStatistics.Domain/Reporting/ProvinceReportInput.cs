@@ -8,6 +8,16 @@ public sealed class ProvinceReportInput
     {
         ArgumentNullException.ThrowIfNull(values);
 
+        MetricKey[] undefinedMetrics = values.Keys
+            .Where(metric => !Enum.IsDefined(metric))
+            .ToArray();
+        if (undefinedMetrics.Length > 0)
+        {
+            throw new ArgumentException(
+                $"包含未定义指标：{string.Join(", ", undefinedMetrics.Select(metric => (int)metric))}。",
+                nameof(values));
+        }
+
         MetricKey[] missingMetrics = Enum.GetValues<MetricKey>()
             .Where(metric => !values.ContainsKey(metric))
             .ToArray();

@@ -196,6 +196,18 @@ public sealed class ProvinceDataAssemblerTests
         Assert.Contains("BroadbandIpv6", exception.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ProvinceReportInputRejectsUndefinedMetricKeys()
+    {
+        Dictionary<MetricKey, decimal> values = CreateAllMetricValues();
+        values[(MetricKey)999] = 1m;
+
+        ArgumentException exception = Assert.Throws<ArgumentException>(
+            () => new ProvinceReportInput(values));
+
+        Assert.Contains("999", exception.Message, StringComparison.Ordinal);
+    }
+
     private static List<SourceReadResult> CreateCompleteSources()
     {
         return ExpectedMetrics
