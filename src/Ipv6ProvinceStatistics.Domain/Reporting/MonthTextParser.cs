@@ -6,7 +6,7 @@ namespace Ipv6ProvinceStatistics.Domain.Reporting;
 public static class MonthTextParser
 {
     private static readonly Regex FullChineseMonthShapePattern = new(
-        @"(?<!\p{Nd})\p{Nd}{4}年\p{Nd}{1,2}月",
+        @"\p{Nd}+年\p{Nd}+月",
         RegexOptions.CultureInvariant);
 
     private static readonly Regex FullChineseMonthPattern = new(

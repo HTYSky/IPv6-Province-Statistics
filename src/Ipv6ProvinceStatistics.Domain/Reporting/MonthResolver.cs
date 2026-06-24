@@ -4,7 +4,11 @@ namespace Ipv6ProvinceStatistics.Domain.Reporting;
 
 public sealed record MonthResolution(ReportMonth? Month, IReadOnlyList<ValidationIssue> Issues)
 {
-    public bool IsValid => Month is not null && Issues.Count == 0;
+    public bool IsValid =>
+        Month.HasValue &&
+        Month.Value.Year is >= 2000 and <= 9999 &&
+        Month.Value.Month is >= 1 and <= 12 &&
+        Issues.Count == 0;
 }
 
 public static class MonthResolver
@@ -86,7 +90,11 @@ public static class MonthResolver
             int partialMonth = partialMonths[0];
             if (!selected.HasValue)
             {
-                return Invalid("MONTH_YEAR_MISSING", "A report month was found, but its year is missing.");
+                return Invalid(
+                    "MONTH_YEAR_MISSING",
+                    WithSources(
+                        "A report month was found, but its year is missing.",
+                        markerList.Where(marker => !marker.Year.HasValue)));
             }
 
             if (selected.Value.Month != partialMonth)

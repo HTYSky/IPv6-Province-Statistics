@@ -57,6 +57,18 @@ public sealed class MonthResolverTests
     }
 
     [Theory]
+    [InlineData("１2026年5月")]
+    [InlineData("12026年5月")]
+    [InlineData("20260年5月")]
+    [InlineData("999年5月")]
+    public void ExtractBlocksPartialFallbackForAnyNumericYearShape(string text)
+    {
+        IReadOnlyList<MonthMarker> markers = MonthTextParser.Extract("file-name", text);
+
+        Assert.Empty(markers);
+    }
+
+    [Theory]
     [InlineData("２202605")]
     [InlineData("202605２")]
     [InlineData("20２６05月")]
@@ -118,6 +130,14 @@ public sealed class MonthResolverTests
         Assert.False(resolution.IsValid);
         Assert.Null(resolution.Month);
         Assert.Equal("MONTH_INVALID", Assert.Single(resolution.Issues).Code);
+    }
+
+    [Fact]
+    public void MonthResolutionIsInvalidWhenItsMonthIsTheDefaultValue()
+    {
+        var resolution = new MonthResolution(default(ReportMonth), []);
+
+        Assert.False(resolution.IsValid);
     }
 
     [Fact]
@@ -207,12 +227,15 @@ public sealed class MonthResolverTests
     public void ResolveRequiresYearWhenOnlyPartialMarkersExist()
     {
         MonthResolution resolution = MonthResolver.Resolve(
-            [new MonthMarker(null, 5, "sheet-a")],
+            [new MonthMarker(null, 5, "sheet-a"), new MonthMarker(null, 5, "sheet-b")],
             selected: null);
 
         Assert.False(resolution.IsValid);
         Assert.Null(resolution.Month);
-        Assert.Equal("MONTH_YEAR_MISSING", Assert.Single(resolution.Issues).Code);
+        ValidationIssue issue = Assert.Single(resolution.Issues);
+        Assert.Equal("MONTH_YEAR_MISSING", issue.Code);
+        Assert.Contains("sheet-a", issue.Message, StringComparison.Ordinal);
+        Assert.Contains("sheet-b", issue.Message, StringComparison.Ordinal);
     }
 
     [Fact]
