@@ -39,6 +39,14 @@ public sealed class MonthResolverTests
     }
 
     [Fact]
+    public void ExtractRecognizesPartialMonthAfterNonNumericYearWord()
+    {
+        IReadOnlyList<MonthMarker> markers = MonthTextParser.Extract("sheet-a", "今年5月");
+
+        Assert.Equal(new MonthMarker(null, 5, "sheet-a"), Assert.Single(markers));
+    }
+
+    [Fact]
     public void ExtractIgnoresMalformedUnicodeYearWithoutFallingBackToPartialMonth()
     {
         IReadOnlyList<MonthMarker> markers = MonthTextParser.Extract(
@@ -59,40 +67,26 @@ public sealed class MonthResolverTests
     }
 
     [Fact]
-    public void ResolveRejectsUnsupportedExplicitYearWithoutTreatingItAsPartial()
+    public void ExtractIgnoresUnsupportedExplicitYearWithoutPartialFallback()
     {
         IReadOnlyList<MonthMarker> markers = MonthTextParser.Extract("file-a", "2100年5月.xlsx");
 
-        MonthMarker marker = Assert.Single(markers);
-        Assert.Equal(new MonthMarker(2100, 5, "file-a"), marker);
-
-        MonthResolution resolution = MonthResolver.Resolve(markers, new ReportMonth(2026, 5));
-
-        Assert.False(resolution.IsValid);
-        Assert.Null(resolution.Month);
-        ValidationIssue issue = Assert.Single(resolution.Issues);
-        Assert.Equal("MONTH_INVALID", issue.Code);
-        Assert.Contains("file-a", issue.Message, StringComparison.Ordinal);
+        Assert.Empty(markers);
     }
 
     [Fact]
-    public void ResolveRejectsExplicitInvalidMonthEvenWhenSelectionIsValid()
+    public void ExtractIgnoresExplicitInvalidMonthWithoutPartialFallback()
     {
         IReadOnlyList<MonthMarker> markers = MonthTextParser.Extract("file-a", "2026年13月.xlsx");
 
-        Assert.Equal(new MonthMarker(2026, 13, "file-a"), Assert.Single(markers));
-
-        MonthResolution resolution = MonthResolver.Resolve(markers, new ReportMonth(2026, 5));
-
-        Assert.False(resolution.IsValid);
-        Assert.Null(resolution.Month);
-        Assert.Equal("MONTH_INVALID", Assert.Single(resolution.Issues).Code);
+        Assert.Empty(markers);
     }
 
     [Theory]
     [InlineData(null, 0)]
     [InlineData(2026, 13)]
-    public void ResolveRejectsMarkerWithInvalidMonth(int? year, int month)
+    [InlineData(2100, 5)]
+    public void ResolveRejectsInvalidHandConstructedMarker(int? year, int month)
     {
         MonthResolution resolution = MonthResolver.Resolve(
             [new MonthMarker(year, month, "source-a")],
@@ -100,7 +94,9 @@ public sealed class MonthResolverTests
 
         Assert.False(resolution.IsValid);
         Assert.Null(resolution.Month);
-        Assert.Equal("MONTH_INVALID", Assert.Single(resolution.Issues).Code);
+        ValidationIssue issue = Assert.Single(resolution.Issues);
+        Assert.Equal("MONTH_INVALID", issue.Code);
+        Assert.Contains("source-a", issue.Message, StringComparison.Ordinal);
     }
 
     [Fact]

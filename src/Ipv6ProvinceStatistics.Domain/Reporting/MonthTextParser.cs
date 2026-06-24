@@ -5,16 +5,20 @@ namespace Ipv6ProvinceStatistics.Domain.Reporting;
 
 public static class MonthTextParser
 {
+    private static readonly Regex FullChineseMonthShapePattern = new(
+        @"(?<!\p{Nd})\p{Nd}{4}年\p{Nd}{1,2}月",
+        RegexOptions.CultureInvariant);
+
     private static readonly Regex FullChineseMonthPattern = new(
-        @"(?<![0-9])(?<year>[0-9]{4})年(?<month>[0-9]{1,2})月",
+        @"(?<![0-9])(?<year>20[0-9]{2})年(?<month>0?[1-9]|1[0-2])月",
         RegexOptions.CultureInvariant);
 
     private static readonly Regex CompactMonthPattern = new(
-        @"(?<![0-9])(?<year>[0-9]{4})(?<month>[0-9]{2})(?![0-9])",
+        @"(?<![0-9])(?<year>20[0-9]{2})(?<month>0[1-9]|1[0-2])(?![0-9])",
         RegexOptions.CultureInvariant);
 
     private static readonly Regex PartialMonthPattern = new(
-        @"(?<![0-9年])(?<month>0?[1-9]|1[0-2])月",
+        @"(?<![0-9])(?<month>0?[1-9]|1[0-2])月",
         RegexOptions.CultureInvariant);
 
     public static IReadOnlyList<MonthMarker> Extract(string source, string? text)
@@ -24,6 +28,7 @@ public static class MonthTextParser
             return Array.AsReadOnly(Array.Empty<MonthMarker>());
         }
 
+        Match[] fullChineseShapes = FullChineseMonthShapePattern.Matches(text).Cast<Match>().ToArray();
         var fullCandidates = new List<MarkerCandidate>();
         AddFullCandidates(fullCandidates, FullChineseMonthPattern, text);
         AddFullCandidates(fullCandidates, CompactMonthPattern, text);
@@ -31,7 +36,8 @@ public static class MonthTextParser
         var candidates = new List<MarkerCandidate>(fullCandidates);
         foreach (Match match in PartialMonthPattern.Matches(text))
         {
-            if (fullCandidates.Any(candidate => candidate.Overlaps(match.Index, match.Length)))
+            if (fullChineseShapes.Any(shape =>
+                    Overlaps(shape.Index, shape.Length, match.Index, match.Length)))
             {
                 continue;
             }
@@ -75,8 +81,8 @@ public static class MonthTextParser
     private static int Parse(Group group) =>
         int.Parse(group.Value, NumberStyles.None, CultureInfo.InvariantCulture);
 
-    private readonly record struct MarkerCandidate(int Index, int Length, int? Year, int Month)
-    {
-        public bool Overlaps(int index, int length) => Index < index + length && index < Index + Length;
-    }
+    private static bool Overlaps(int leftIndex, int leftLength, int rightIndex, int rightLength) =>
+        leftIndex < rightIndex + rightLength && rightIndex < leftIndex + leftLength;
+
+    private readonly record struct MarkerCandidate(int Index, int Length, int? Year, int Month);
 }
