@@ -74,6 +74,10 @@ public sealed class OpenXmlWorkbookInspector : IWorkbookInspector
         {
             return CreateUnreadableInspection(path, fileName);
         }
+        catch (InvalidDataException)
+        {
+            return CreateUnreadableInspection(path, fileName);
+        }
         catch (UnauthorizedAccessException)
         {
             return CreateUnreadableInspection(path, fileName);
@@ -168,14 +172,16 @@ public sealed class OpenXmlWorkbookInspector : IWorkbookInspector
         string address)
     {
         string header = HeaderText.Normalize(reader.GetText(sheetName, address));
-        if (header.StartsWith("总流量", StringComparison.OrdinalIgnoreCase))
+        if (!header.Contains("总流量", StringComparison.OrdinalIgnoreCase))
         {
-            return true;
+            return false;
         }
 
-        bool isIpv6Only = header.Contains("IPv6", StringComparison.OrdinalIgnoreCase) ||
-                          header.Contains("V6", StringComparison.OrdinalIgnoreCase);
-        return header.Contains("总流量", StringComparison.OrdinalIgnoreCase) && !isIpv6Only;
+        bool hasV4 = header.Contains("IPv4", StringComparison.OrdinalIgnoreCase) ||
+                     header.Contains("V4", StringComparison.OrdinalIgnoreCase);
+        bool hasV6 = header.Contains("IPv6", StringComparison.OrdinalIgnoreCase) ||
+                     header.Contains("V6", StringComparison.OrdinalIgnoreCase);
+        return hasV4 == hasV6;
     }
 
     private static void AddTable8MonthMarkers(

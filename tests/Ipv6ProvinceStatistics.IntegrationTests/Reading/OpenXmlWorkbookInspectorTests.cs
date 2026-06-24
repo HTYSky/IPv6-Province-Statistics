@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Spreadsheet;
 using Ipv6ProvinceStatistics.Application.Models;
 using Ipv6ProvinceStatistics.Domain.Reporting;
 using Ipv6ProvinceStatistics.Domain.Validation;
@@ -120,6 +122,23 @@ public sealed class OpenXmlWorkbookInspectorTests
         Assert.DoesNotContain("End of Central Directory", issue.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    [InlineData("missing-shared-strings")]
+    [InlineData("missing-worksheet-relationship")]
+    public async Task ReportsUnreadableForKnownMalformedWorkbookStructures(string damage)
+    {
+        string fileName = $"{damage}.xlsx";
+        string path = WorkbookFixtures.CreateTable1(fileName);
+        DamageWorkbook(path, damage);
+
+        WorkbookInspection inspection = await _inspector.InspectAsync(path, default);
+
+        Assert.Empty(inspection.MatchingKinds);
+        ValidationIssue issue = Assert.Single(inspection.Issues);
+        Assert.Equal("WORKBOOK_UNREADABLE", issue.Code);
+        Assert.Equal(fileName, issue.FileName);
+    }
+
     [Fact]
     public async Task DoesNotConvertArgumentErrorsToUnreadableIssues()
     {
@@ -151,8 +170,12 @@ public sealed class OpenXmlWorkbookInspectorTests
         Assert.Contains("必要", issue.Message, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task DoesNotUseAnIpv6HeaderForTheTable8OrdinaryTotal()
+    [Theory]
+    [InlineData("IPv6总流量")]
+    [InlineData("IPv4总流量")]
+    [InlineData("总流量（仅IPv6）")]
+    public async Task DoesNotUseASingleVersionHeaderForTheTable8OrdinaryTotal(
+        string ordinaryTotalHeader)
     {
         string path = TempFiles.Next("table8-ipv6-only-total.xlsx");
         TestWorkbookBuilder.Create(
@@ -162,7 +185,7 @@ public sealed class OpenXmlWorkbookInspectorTests
                 [
                     TestCell.SharedText("A2", "月"),
                     TestCell.SharedText("B2", "省份"),
-                    TestCell.SharedText("D2", "IPv6总流量"),
+                    TestCell.SharedText("D2", ordinaryTotalHeader),
                     TestCell.SharedText("J2", "IPv6总流量"),
                 ]));
 
@@ -194,13 +217,16 @@ public sealed class OpenXmlWorkbookInspectorTests
     }
 
     [Theory]
-    [InlineData("互联网专线汇总", "E2")]
-    [InlineData("互联网专线汇总", "K2")]
-    [InlineData("IDC汇总(客户)", "F2")]
-    [InlineData("IDC汇总(客户)", "M2")]
-    public async Task DoesNotUseAnIpv6HeaderForATable5OrdinaryTotal(
+    [InlineData("互联网专线汇总", "E2", "IPv6总流量")]
+    [InlineData("互联网专线汇总", "K2", "IPv6总流量")]
+    [InlineData("IDC汇总(客户)", "F2", "IPv6总流量")]
+    [InlineData("IDC汇总(客户)", "M2", "IPv6总流量")]
+    [InlineData("互联网专线汇总", "E2", "IPv4总流量")]
+    [InlineData("IDC汇总(客户)", "F2", "总流量(仅IPv6)")]
+    public async Task DoesNotUseASingleVersionHeaderForATable5OrdinaryTotal(
         string sheetName,
-        string address)
+        string address,
+        string replacementHeader)
     {
         string path = TempFiles.Next("table5-ipv6-only-total.xlsx");
         TestCell[] internetHeaders =
@@ -225,7 +251,7 @@ public sealed class OpenXmlWorkbookInspectorTests
         int targetIndex = Array.FindIndex(
             targetHeaders,
             cell => string.Equals(cell.Address, address, StringComparison.Ordinal));
-        targetHeaders[targetIndex] = TestCell.SharedText(address, "IPv6总流量");
+        targetHeaders[targetIndex] = TestCell.SharedText(address, replacementHeader);
         TestWorkbookBuilder.Create(
             path,
             new TestSheet("互联网专线汇总", internetHeaders),
@@ -297,5 +323,25 @@ public sealed class OpenXmlWorkbookInspectorTests
         Assert.True(HeaderText.Contains("ＩＰＶ６总流量", "IPv6总流量"));
         Assert.Equal("A\u200bB", HeaderText.Normalize("A\u200bB"));
         Assert.Equal(string.Empty, HeaderText.Normalize(null));
+    }
+
+    private static void DamageWorkbook(string path, string damage)
+    {
+        using SpreadsheetDocument document = SpreadsheetDocument.Open(path, isEditable: true);
+        WorkbookPart workbookPart = Assert.IsType<WorkbookPart>(document.WorkbookPart);
+        if (damage == "missing-shared-strings")
+        {
+            SharedStringTablePart sharedStringsPart =
+                Assert.IsType<SharedStringTablePart>(workbookPart.SharedStringTablePart);
+            workbookPart.DeletePart(sharedStringsPart);
+            return;
+        }
+
+        Workbook workbook = Assert.IsType<Workbook>(workbookPart.Workbook);
+        Sheets sheets = Assert.IsType<Sheets>(workbook.GetFirstChild<Sheets>());
+        Sheet sheet = Assert.Single(sheets.Elements<Sheet>());
+        WorksheetPart worksheetPart = Assert.IsType<WorksheetPart>(
+            workbookPart.GetPartById(Assert.IsType<string>(sheet.Id?.Value)));
+        workbookPart.DeletePart(worksheetPart);
     }
 }
