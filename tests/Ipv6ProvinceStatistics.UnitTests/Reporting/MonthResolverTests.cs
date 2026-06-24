@@ -56,6 +56,17 @@ public sealed class MonthResolverTests
         Assert.Empty(markers);
     }
 
+    [Theory]
+    [InlineData("２202605")]
+    [InlineData("202605２")]
+    [InlineData("20２６05月")]
+    public void ExtractDoesNotStartOrEndMarkerInsideUnicodeDigitSequence(string text)
+    {
+        IReadOnlyList<MonthMarker> markers = MonthTextParser.Extract("file-name", text);
+
+        Assert.Empty(markers);
+    }
+
     [Fact]
     public void ExtractReturnsAReadOnlySnapshot()
     {

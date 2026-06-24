@@ -10,15 +10,15 @@ public static class MonthTextParser
         RegexOptions.CultureInvariant);
 
     private static readonly Regex FullChineseMonthPattern = new(
-        @"(?<![0-9])(?<year>20[0-9]{2})年(?<month>0?[1-9]|1[0-2])月",
+        @"(?<!\p{Nd})(?<year>20[0-9]{2})年(?<month>0?[1-9]|1[0-2])月",
         RegexOptions.CultureInvariant);
 
     private static readonly Regex CompactMonthPattern = new(
-        @"(?<![0-9])(?<year>20[0-9]{2})(?<month>0[1-9]|1[0-2])(?![0-9])",
+        @"(?<!\p{Nd})(?<year>20[0-9]{2})(?<month>0[1-9]|1[0-2])(?!\p{Nd})",
         RegexOptions.CultureInvariant);
 
     private static readonly Regex PartialMonthPattern = new(
-        @"(?<![0-9])(?<month>0?[1-9]|1[0-2])月",
+        @"(?<!\p{Nd})(?<month>0?[1-9]|1[0-2])月",
         RegexOptions.CultureInvariant);
 
     public static IReadOnlyList<MonthMarker> Extract(string source, string? text)
