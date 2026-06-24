@@ -11,8 +11,9 @@ internal static class HeaderText
             return string.Empty;
         }
 
-        var builder = new StringBuilder(value.Length);
-        foreach (Rune rune in value.EnumerateRunes())
+        string compatibilityNormalized = value.Normalize(NormalizationForm.FormKC);
+        var builder = new StringBuilder(compatibilityNormalized.Length);
+        foreach (Rune rune in compatibilityNormalized.EnumerateRunes())
         {
             if (Rune.IsWhiteSpace(rune))
             {

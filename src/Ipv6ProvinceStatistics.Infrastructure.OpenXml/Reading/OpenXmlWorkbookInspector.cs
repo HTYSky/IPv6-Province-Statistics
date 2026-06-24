@@ -1,3 +1,5 @@
+using System.Xml;
+using DocumentFormat.OpenXml.Packaging;
 using Ipv6ProvinceStatistics.Application.Abstractions;
 using Ipv6ProvinceStatistics.Application.Models;
 using Ipv6ProvinceStatistics.Domain.Reporting;
@@ -14,6 +16,11 @@ public sealed class OpenXmlWorkbookInspector : IWorkbookInspector
     private const string Table5IdcSheet = "IDC汇总(客户)";
 
     public Task<WorkbookInspection> InspectAsync(
+        string path,
+        CancellationToken cancellationToken) =>
+        Task.Run(() => InspectCore(path, cancellationToken), cancellationToken);
+
+    private static WorkbookInspection InspectCore(
         string path,
         CancellationToken cancellationToken)
     {
@@ -36,16 +43,19 @@ public sealed class OpenXmlWorkbookInspector : IWorkbookInspector
                     MonthTextParser.Extract("1表标题", reader.GetText(Table1Sheet, "A1")));
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             if (MatchesTable4(reader))
             {
                 kinds.Add(SourceWorkbookKind.Table4);
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             if (MatchesTable5(reader))
             {
                 kinds.Add(SourceWorkbookKind.Table5);
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             string[] table8Sheets = reader.SheetNames
                 .Where(IsTable8SheetName)
                 .Where(sheetName => MatchesTable8Sheet(reader, sheetName))
@@ -58,24 +68,27 @@ public sealed class OpenXmlWorkbookInspector : IWorkbookInspector
 
             cancellationToken.ThrowIfCancellationRequested();
             ValidationIssue[] issues = CreateStructureIssues(fileName, kinds.Count);
-            return Task.FromResult(CreateInspection(path, kinds, markers, issues));
+            return CreateInspection(path, kinds, markers, issues);
         }
-        catch (OperationCanceledException)
+        catch (IOException)
         {
-            throw;
+            return CreateUnreadableInspection(path, fileName);
         }
-        catch (Exception)
+        catch (UnauthorizedAccessException)
         {
-            var issue = new ValidationIssue(
-                "WORKBOOK_UNREADABLE",
-                $"无法读取工作簿 '{fileName}'：文件可能损坏、加密或不是有效的 OOXML 工作簿。",
-                fileName);
-            return Task.FromResult(
-                CreateInspection(
-                    path,
-                    [],
-                    MonthTextParser.Extract(fileName, fileName),
-                    [issue]));
+            return CreateUnreadableInspection(path, fileName);
+        }
+        catch (OpenXmlPackageException)
+        {
+            return CreateUnreadableInspection(path, fileName);
+        }
+        catch (XmlException)
+        {
+            return CreateUnreadableInspection(path, fileName);
+        }
+        catch (FormatException)
+        {
+            return CreateUnreadableInspection(path, fileName);
         }
     }
 
@@ -102,9 +115,9 @@ public sealed class OpenXmlWorkbookInspector : IWorkbookInspector
     {
         if (!reader.HasSheet(Table5InternetSheet) ||
             !HeaderContains(reader, Table5InternetSheet, "M2", "省") ||
-            !HeaderContains(reader, Table5InternetSheet, "E2", "总流量") ||
+            !IsOrdinaryTotalHeader(reader, Table5InternetSheet, "E2") ||
             !HeaderContains(reader, Table5InternetSheet, "F2", "IPv6流量") ||
-            !HeaderContains(reader, Table5InternetSheet, "K2", "总流量") ||
+            !IsOrdinaryTotalHeader(reader, Table5InternetSheet, "K2") ||
             !HeaderContains(reader, Table5InternetSheet, "L2", "IPv6流量"))
         {
             return false;
@@ -125,9 +138,9 @@ public sealed class OpenXmlWorkbookInspector : IWorkbookInspector
         OpenXmlWorkbookReader reader,
         string sheetName) =>
         HeaderContains(reader, sheetName, "O2", "省") &&
-        HeaderContains(reader, sheetName, "F2", "总流量") &&
+        IsOrdinaryTotalHeader(reader, sheetName, "F2") &&
         HeaderContains(reader, sheetName, "G2", "V6日流量") &&
-        HeaderContains(reader, sheetName, "M2", "总流量") &&
+        IsOrdinaryTotalHeader(reader, sheetName, "M2") &&
         HeaderContains(reader, sheetName, "N2", "V6日流量");
 
     private static bool IsTable8SheetName(string sheetName) =>
@@ -139,7 +152,7 @@ public sealed class OpenXmlWorkbookInspector : IWorkbookInspector
         string sheetName) =>
         HeaderContains(reader, sheetName, "A2", "月") &&
         HeaderContains(reader, sheetName, "B2", "省份") &&
-        HeaderContains(reader, sheetName, "D2", "总流量") &&
+        IsOrdinaryTotalHeader(reader, sheetName, "D2") &&
         HeaderContains(reader, sheetName, "J2", "IPv6总流量");
 
     private static bool HeaderContains(
@@ -148,6 +161,22 @@ public sealed class OpenXmlWorkbookInspector : IWorkbookInspector
         string address,
         string expected) =>
         HeaderText.Contains(reader.GetText(sheetName, address), expected);
+
+    private static bool IsOrdinaryTotalHeader(
+        OpenXmlWorkbookReader reader,
+        string sheetName,
+        string address)
+    {
+        string header = HeaderText.Normalize(reader.GetText(sheetName, address));
+        if (header.StartsWith("总流量", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        bool isIpv6Only = header.Contains("IPv6", StringComparison.OrdinalIgnoreCase) ||
+                          header.Contains("V6", StringComparison.OrdinalIgnoreCase);
+        return header.Contains("总流量", StringComparison.OrdinalIgnoreCase) && !isIpv6Only;
+    }
 
     private static void AddTable8MonthMarkers(
         OpenXmlWorkbookReader reader,
@@ -160,13 +189,22 @@ public sealed class OpenXmlWorkbookInspector : IWorkbookInspector
             cancellationToken.ThrowIfCancellationRequested();
             foreach (uint row in reader.GetPopulatedRows(sheetName).Where(row => row >= 4).Order())
             {
-                string? value = reader.GetText(sheetName, $"A{row}");
+                string address = $"A{row}";
+                string? value = reader.GetText(sheetName, address);
                 if (HeaderText.Normalize(value).Length == 0)
                 {
                     continue;
                 }
 
-                foreach (MonthMarker marker in MonthTextParser.Extract("8表A列", value))
+                IReadOnlyList<MonthMarker> parsedMarkers = MonthTextParser.Extract(
+                    $"8表 {sheetName}!{address}",
+                    value);
+                if (parsedMarkers.Count == 0)
+                {
+                    continue;
+                }
+
+                foreach (MonthMarker marker in parsedMarkers)
                 {
                     markers.Add(marker);
                 }
@@ -206,4 +244,19 @@ public sealed class OpenXmlWorkbookInspector : IWorkbookInspector
             Array.AsReadOnly(kinds.ToArray()),
             Array.AsReadOnly(markers.Distinct().ToArray()),
             Array.AsReadOnly(issues.ToArray()));
+
+    private static WorkbookInspection CreateUnreadableInspection(
+        string path,
+        string fileName)
+    {
+        var issue = new ValidationIssue(
+            "WORKBOOK_UNREADABLE",
+            $"无法读取工作簿 '{fileName}'：文件可能损坏、加密或不是有效的 OOXML 工作簿。",
+            fileName);
+        return CreateInspection(
+            path,
+            [],
+            MonthTextParser.Extract(fileName, fileName),
+            [issue]);
+    }
 }

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Ipv6ProvinceStatistics.Application.Models;
 using Ipv6ProvinceStatistics.Domain.Reporting;
 using Ipv6ProvinceStatistics.Domain.Validation;
@@ -27,17 +28,42 @@ public sealed class OpenXmlWorkbookInspectorTests
     }
 
     [Theory]
-    [InlineData("省统计")]
-    [InlineData("1-省统计")]
-    public async Task IdentifiesTable8SheetAliasesAndReadsTheFirstColumnMonth(string sheetName)
+    [InlineData("省统计", "8表 省统计!A4")]
+    [InlineData("1-省统计", "8表 1-省统计!A4")]
+    public async Task IdentifiesTable8SheetAliasesAndReadsTheFirstColumnMonth(
+        string sheetName,
+        string expectedSource)
     {
         string path = WorkbookFixtures.CreateTable8(sheetName, "8.xlsx");
 
         WorkbookInspection inspection = await _inspector.InspectAsync(path, default);
 
         Assert.Equal([SourceWorkbookKind.Table8], inspection.MatchingKinds);
-        Assert.Equal([new(2026, 5, "8表A列")], inspection.MonthMarkers);
+        Assert.Equal([new(2026, 5, expectedSource)], inspection.MonthMarkers);
         Assert.Empty(inspection.Issues);
+    }
+
+    [Fact]
+    public async Task SkipsNonMonthValuesBeforeTheFirstTable8Month()
+    {
+        string path = TempFiles.Next("8-scan.xlsx");
+        TestWorkbookBuilder.Create(
+            path,
+            new TestSheet(
+                "1-省统计",
+                [
+                    TestCell.SharedText("A2", "月"),
+                    TestCell.SharedText("B2", "省份"),
+                    TestCell.SharedText("D2", "总流量"),
+                    TestCell.SharedText("J2", "IPv6总流量"),
+                    TestCell.SharedText("A4", "说明"),
+                    TestCell.Number("A5", "202605"),
+                ]));
+
+        WorkbookInspection inspection = await _inspector.InspectAsync(path, default);
+
+        Assert.Equal([SourceWorkbookKind.Table8], inspection.MatchingKinds);
+        Assert.Equal([new(2026, 5, "8表 1-省统计!A5")], inspection.MonthMarkers);
     }
 
     [Fact]
@@ -95,6 +121,13 @@ public sealed class OpenXmlWorkbookInspectorTests
     }
 
     [Fact]
+    public async Task DoesNotConvertArgumentErrorsToUnreadableIssues()
+    {
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            () => _inspector.InspectAsync(null!, default));
+    }
+
+    [Fact]
     public async Task ReportsUnknownWhenTable8IsMissingARequiredHeader()
     {
         string path = TempFiles.Next("missing-j2.xlsx");
@@ -116,6 +149,92 @@ public sealed class OpenXmlWorkbookInspectorTests
         Assert.Equal("WORKBOOK_STRUCTURE_UNKNOWN", issue.Code);
         Assert.Equal("missing-j2.xlsx", issue.FileName);
         Assert.Contains("必要", issue.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DoesNotUseAnIpv6HeaderForTheTable8OrdinaryTotal()
+    {
+        string path = TempFiles.Next("table8-ipv6-only-total.xlsx");
+        TestWorkbookBuilder.Create(
+            path,
+            new TestSheet(
+                "省统计",
+                [
+                    TestCell.SharedText("A2", "月"),
+                    TestCell.SharedText("B2", "省份"),
+                    TestCell.SharedText("D2", "IPv6总流量"),
+                    TestCell.SharedText("J2", "IPv6总流量"),
+                ]));
+
+        WorkbookInspection inspection = await _inspector.InspectAsync(path, default);
+
+        Assert.Empty(inspection.MatchingKinds);
+        Assert.Equal("WORKBOOK_STRUCTURE_UNKNOWN", Assert.Single(inspection.Issues).Code);
+    }
+
+    [Fact]
+    public async Task AcceptsTable8OrdinaryTotalWithAV4AndV6Description()
+    {
+        string path = TempFiles.Next("table8-combined-total.xlsx");
+        TestWorkbookBuilder.Create(
+            path,
+            new TestSheet(
+                "1-省统计",
+                [
+                    TestCell.SharedText("A2", "月"),
+                    TestCell.SharedText("B2", "省份"),
+                    TestCell.SharedText("D2", "总流量\n(v4+v6，GB)"),
+                    TestCell.SharedText("J2", "IPv6总流量(GB)"),
+                ]));
+
+        WorkbookInspection inspection = await _inspector.InspectAsync(path, default);
+
+        Assert.Equal([SourceWorkbookKind.Table8], inspection.MatchingKinds);
+        Assert.Empty(inspection.Issues);
+    }
+
+    [Theory]
+    [InlineData("互联网专线汇总", "E2")]
+    [InlineData("互联网专线汇总", "K2")]
+    [InlineData("IDC汇总(客户)", "F2")]
+    [InlineData("IDC汇总(客户)", "M2")]
+    public async Task DoesNotUseAnIpv6HeaderForATable5OrdinaryTotal(
+        string sheetName,
+        string address)
+    {
+        string path = TempFiles.Next("table5-ipv6-only-total.xlsx");
+        TestCell[] internetHeaders =
+        [
+            TestCell.SharedText("E2", "总流量"),
+            TestCell.SharedText("F2", "IPv6流量"),
+            TestCell.SharedText("K2", "总流量"),
+            TestCell.SharedText("L2", "IPv6流量"),
+            TestCell.SharedText("M2", "省"),
+        ];
+        TestCell[] idcHeaders =
+        [
+            TestCell.SharedText("F2", "总流量"),
+            TestCell.SharedText("G2", "V6日流量"),
+            TestCell.SharedText("M2", "总流量"),
+            TestCell.SharedText("N2", "V6日流量"),
+            TestCell.SharedText("O2", "省"),
+        ];
+        TestCell[] targetHeaders = sheetName == "互联网专线汇总"
+            ? internetHeaders
+            : idcHeaders;
+        int targetIndex = Array.FindIndex(
+            targetHeaders,
+            cell => string.Equals(cell.Address, address, StringComparison.Ordinal));
+        targetHeaders[targetIndex] = TestCell.SharedText(address, "IPv6总流量");
+        TestWorkbookBuilder.Create(
+            path,
+            new TestSheet("互联网专线汇总", internetHeaders),
+            new TestSheet("IDC汇总(客户)", idcHeaders));
+
+        WorkbookInspection inspection = await _inspector.InspectAsync(path, default);
+
+        Assert.Empty(inspection.MatchingKinds);
+        Assert.Equal("WORKBOOK_STRUCTURE_UNKNOWN", Assert.Single(inspection.Issues).Code);
     }
 
     [Fact]
@@ -148,10 +267,35 @@ public sealed class OpenXmlWorkbookInspectorTests
     }
 
     [Fact]
+    public async Task ReturnsBeforeALargeWorkbookInspectionCompletes()
+    {
+        const int cellCount = 100_000;
+        string path = TempFiles.Next("large-inspection.xlsx");
+        TestCell[] cells = Enumerable.Range(1, cellCount)
+            .Select(row => TestCell.Number($"A{row}", "1"))
+            .ToArray();
+        TestWorkbookBuilder.Create(path, new TestSheet("数据", cells));
+
+        Stopwatch stopwatch = Stopwatch.StartNew();
+        Task<WorkbookInspection> inspectionTask = _inspector.InspectAsync(path, default);
+        stopwatch.Stop();
+
+        Assert.False(inspectionTask.IsCompleted);
+        Assert.True(
+            stopwatch.Elapsed < TimeSpan.FromSeconds(2),
+            $"InspectAsync blocked its caller for {stopwatch.Elapsed}.");
+        WorkbookInspection inspection = await inspectionTask;
+        Assert.Equal("WORKBOOK_STRUCTURE_UNKNOWN", Assert.Single(inspection.Issues).Code);
+    }
+
+    [Fact]
     public void HeaderTextRemovesUnicodeWhitespaceAndNormalizesParenthesesAndCase()
     {
         Assert.Equal("IDC汇总(客户)", HeaderText.Normalize(" I\u00a0D\u2003C汇总\u3000（客户） "));
+        Assert.Equal("IDC汇总(客户)", HeaderText.Normalize("ＩＤＣ汇总（客户）"));
         Assert.True(HeaderText.Contains("IP\u202fV6 日均流量（PB）", "ipv6日均流量(pb)"));
+        Assert.True(HeaderText.Contains("ＩＰＶ６总流量", "IPv6总流量"));
+        Assert.Equal("A\u200bB", HeaderText.Normalize("A\u200bB"));
         Assert.Equal(string.Empty, HeaderText.Normalize(null));
     }
 }
