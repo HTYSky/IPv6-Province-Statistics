@@ -17,21 +17,22 @@ public sealed class TemplateReportExporter(TemplateResourceProvider provider) : 
         var template = provider.ReadTemplate();
         await File.WriteAllBytesAsync(outputPath, template, cancellationToken);
 
-        using var document = SpreadsheetDocument.Open(outputPath, true);
-        var workbook = document.WorkbookPart!;
-        var sheet = workbook.Workbook!.Sheets!.Elements<Sheet>().Single(s => s.Name == "Sheet1");
-        var part = (WorksheetPart)workbook.GetPartById(sheet.Id!);
-
-        foreach (var entry in TemplateCellMap.Inputs)
         {
-            var cell = part.Worksheet!.Descendants<Cell>().Single(c =>
-                string.Equals(c.CellReference?.Value, entry.Value, StringComparison.OrdinalIgnoreCase));
-            cell.CellValue = new CellValue(FormattableString.Invariant($"{input[entry.Key]}"));
-            cell.DataType = CellValues.Number;
+            using var document = SpreadsheetDocument.Open(outputPath, true);
+            var workbook = document.WorkbookPart!;
+            var sheet = workbook.Workbook!.Sheets!.Elements<Sheet>().Single(s => s.Name == "Sheet1");
+            var part = (WorksheetPart)workbook.GetPartById(sheet.Id!);
+
+            foreach (var entry in TemplateCellMap.Inputs)
+            {
+                var cell = part.Worksheet!.Descendants<Cell>().Single(c =>
+                    string.Equals(c.CellReference?.Value, entry.Value, StringComparison.OrdinalIgnoreCase));
+                cell.CellValue = new CellValue(FormattableString.Invariant($"{input[entry.Key]}"));
+                cell.DataType = CellValues.Number;
+            }
+
+            part.Worksheet!.Save();
         }
-
-        part.Worksheet!.Save();
-
         return ReportWorkbookVerifier.Verify(outputPath, input, ReportCalculator.Calculate(input).Values);
     }
 
