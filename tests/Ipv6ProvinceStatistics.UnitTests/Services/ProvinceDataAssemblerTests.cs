@@ -110,7 +110,8 @@ public sealed class ProvinceDataAssemblerTests
             result.Issues,
             candidate => candidate.Code == "PROVINCE_MISSING");
         Assert.Contains("北京", issue.Message, StringComparison.Ordinal);
-        Assert.Empty(result.Reports);
+        Assert.Equal(30, result.Reports.Count);
+        Assert.False(result.Reports.ContainsKey(new Province("北京")));
     }
 
     [Fact]
@@ -134,7 +135,8 @@ public sealed class ProvinceDataAssemblerTests
         Assert.Contains("Table5", issue.Message, StringComparison.Ordinal);
         Assert.Contains("北京", issue.Message, StringComparison.Ordinal);
         Assert.Contains("IdcTenGIpv6", issue.Message, StringComparison.Ordinal);
-        Assert.Empty(result.Reports);
+        Assert.Equal(30, result.Reports.Count);
+        Assert.False(result.Reports.ContainsKey(new Province("北京")));
     }
 
     [Fact]
@@ -165,7 +167,7 @@ public sealed class ProvinceDataAssemblerTests
         ProvinceAssemblyResult result = new ProvinceDataAssembler().Assemble(sources);
 
         Assert.Contains(sourceIssue, result.Issues);
-        Assert.Empty(result.Reports);
+        Assert.Equal(31, result.Reports.Count);
     }
 
     [Fact]

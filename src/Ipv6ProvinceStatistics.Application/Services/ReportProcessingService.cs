@@ -50,7 +50,7 @@ public sealed class ReportProcessingService(
                 issues.AddRange(await exporter.ValidateTemplateAsync(token));
                 foreach (var report in assembly.Reports.Values)
                     issues.AddRange(ReportCalculator.Calculate(report).Issues);
-                if (issues.Count == 0)
+                if (assembly.Reports.Count > 0)
                 {
                     var identified = inspections.Where(i => i.MatchingKinds.Count == 1)
                         .Select(i => new { Kind = i.MatchingKinds[0], Source = workspace.Sources.Single(s => s.SnapshotPath == i.Path) })
@@ -91,11 +91,12 @@ public sealed class ReportProcessingService(
         try
         {
             staging = await output.CreateStagingAsync(parent, batch.Workspace.TaskId);
-            for (var index = 0; index < ProvinceCatalog.All.Count; index++)
+            var provinces = batch.Reports.Keys.ToArray();
+            for (var index = 0; index < provinces.Length; index++)
             {
                 token.ThrowIfCancellationRequested();
-                var province = ProvinceCatalog.All[index];
-                progress?.Report(new(ProcessingStage.Generating, index, 31, $"正在生成 {province.Name}"));
+                var province = provinces[index];
+                progress?.Report(new(ProcessingStage.Generating, index, provinces.Length, $"正在生成 {province.Name}"));
                 var path = Path.Combine(staging, $"{province.Name}-{batch.Month.FileSuffix}.xlsx");
                 issues.AddRange(await exporter.ExportAsync(province, batch.Month, batch.Reports[province], path, token));
                 if (issues.Count > 0) break;
@@ -107,7 +108,7 @@ public sealed class ReportProcessingService(
                 await LogAsync(batch.Workspace, "Failed", batch.Month, batch.IdentifiedSources, null, 0, watch.Elapsed, issues, token);
                 return new(false, null, 0, watch.Elapsed, issues);
             }
-            progress?.Report(new(ProcessingStage.Publishing, 31, 31, "正在发布完整结果"));
+            progress?.Report(new(ProcessingStage.Publishing, provinces.Length, provinces.Length, "正在发布完整结果"));
             var published = await output.PublishAsync(staging, parent, batch.Month, token);
             staging = null;
             await workspaces.CleanupAsync(batch.Workspace);

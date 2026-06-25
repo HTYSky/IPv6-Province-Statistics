@@ -51,6 +51,7 @@ public static class ProvinceCatalog
         aliases.Add("广西壮族自治区", aliases["广西"]);
         aliases.Add("宁夏回族自治区", aliases["宁夏"]);
         aliases.Add("新疆维吾尔族自治区", aliases["新疆"]);
+        aliases.Add("新疆维吾尔自治区", aliases["新疆"]);
 
         return aliases.ToFrozenDictionary(StringComparer.Ordinal);
     }

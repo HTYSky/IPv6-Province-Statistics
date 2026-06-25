@@ -95,7 +95,12 @@ public sealed class ProvinceDataAssembler
 
         if (issues.Count > 0)
         {
-            return new ProvinceAssemblyResult(EmptyReports, issues.AsReadOnly());
+            var partialReports = valuesByProvince
+                .Where(kvp => kvp.Value.Count == Enum.GetValues<MetricKey>().Length)
+                .ToDictionary(kvp => kvp.Key, kvp => new ProvinceReportInput(kvp.Value));
+            return new ProvinceAssemblyResult(
+                new ReadOnlyDictionary<Province, ProvinceReportInput>(partialReports),
+                issues.AsReadOnly());
         }
 
         var reports = valuesByProvince.ToDictionary(
