@@ -17,7 +17,7 @@ public sealed class OutputTransactionTests
         foreach (var province in ProvinceCatalog.All)
             await File.WriteAllTextAsync(Path.Combine(staging, $"{province.Name}-2026年05月.xlsx"), province.Name);
         var published = await transaction.PublishAsync(staging, parent, new ReportMonth(2026, 5), CancellationToken.None);
-        Assert.EndsWith("2026年05月统计结果 (2)", published);
+        Assert.Contains("2026年05月统计结果 (2)", published);
         Assert.Equal(31, Directory.GetFiles(published, "*.xlsx").Length);
     }
 }

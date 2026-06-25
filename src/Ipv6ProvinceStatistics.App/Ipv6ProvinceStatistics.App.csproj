@@ -6,7 +6,6 @@
     <AssemblyName>IPv6省级统计助手</AssemblyName>
     <RootNamespace>Ipv6ProvinceStatistics.App</RootNamespace>
   </PropertyGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Ipv6ProvinceStatistics.Application\Ipv6ProvinceStatistics.Application.csproj" />
     <ProjectReference Include="..\Ipv6ProvinceStatistics.Infrastructure.OpenXml\Ipv6ProvinceStatistics.Infrastructure.OpenXml.csproj" />
