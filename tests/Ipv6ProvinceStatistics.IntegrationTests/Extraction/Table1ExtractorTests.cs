@@ -338,12 +338,10 @@ public sealed class Table1ExtractorTests
         Assert.True(readTask.IsCanceled);
     }
 
-    [Theory]
-    [InlineData(SourceWorkbookKind.Table4)]
-    [InlineData(SourceWorkbookKind.Table5)]
-    [InlineData(SourceWorkbookKind.Table8)]
-    public async Task RejectsKindsWithoutAnImplementedExtractor(SourceWorkbookKind kind)
+    [Fact]
+    public async Task RejectsKindsWithoutAnImplementedExtractor()
     {
+        var kind = (SourceWorkbookKind)99;
         string path = TempFiles.Next("尚未支持.xlsx");
         TestWorkbookBuilder.Create(path, new TestSheet("数据", []));
         ISourceWorkbookReader reader = new OpenXmlSourceWorkbookReader();
