@@ -13,7 +13,7 @@
     <ProjectReference Include="..\Ipv6ProvinceStatistics.Application\Ipv6ProvinceStatistics.Application.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="..\..\..\..\assets\templates\Ipv6ReportTemplate.xlsx" LogicalName="Ipv6ProvinceStatistics.Template.xlsx" />
-    <EmbeddedResource Include="..\..\..\..\assets\templates\Ipv6ReportTemplate.sha256" LogicalName="Ipv6ProvinceStatistics.Template.sha256" />
+    <EmbeddedResource Include="..\..\assets\templates\Ipv6ReportTemplate.xlsx" LogicalName="Ipv6ProvinceStatistics.Template.xlsx" />
+    <EmbeddedResource Include="..\..\assets\templates\Ipv6ReportTemplate.sha256" LogicalName="Ipv6ProvinceStatistics.Template.sha256" />
   </ItemGroup>
 </Project>
