@@ -34,6 +34,7 @@ public sealed class OpenXmlSourceWorkbookReader : ISourceWorkbookReader
                 SourceWorkbookKind.Table1 => Table1Extractor.Extract(reader, path, cancellationToken),
                 SourceWorkbookKind.Table4 => Table4Extractor.Extract(reader, path, cancellationToken),
                 SourceWorkbookKind.Table5 => Table5Extractor.Extract(reader, path, cancellationToken),
+                SourceWorkbookKind.Table8 => Table8Extractor.Extract(reader, path, cancellationToken),
                 _ => throw new NotSupportedException($"Extractor not implemented: {kind}"),
             };
         }

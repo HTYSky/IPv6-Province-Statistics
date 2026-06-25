@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Ipv6ProvinceStatistics.Application.Models;
 using Ipv6ProvinceStatistics.Domain.Provinces;
 using Ipv6ProvinceStatistics.Domain.Reporting;
@@ -13,46 +14,51 @@ internal static class Table8Extractor
         string path,
         CancellationToken cancellationToken)
     {
-        string sheet = FindProvinceSummarySheet(reader);
         var issues = new List<ValidationIssue>();
         var values = new Dictionary<Province, IReadOnlyDictionary<MetricKey, decimal>>();
+        var seen = new HashSet<Province>();
+        string fileName = Path.GetFileName(path);
+        string? sheet = reader.SheetNames.FirstOrDefault(
+            name => name == "省统计" || name.EndsWith("-省统计", StringComparison.Ordinal));
+
+        if (sheet is null)
+        {
+            return new SourceReadResult(SourceWorkbookKind.Table8,
+                ExtractorSupport.AsReadOnly(new Dictionary<Province, IReadOnlyDictionary<MetricKey, decimal>>()),
+                [new ValidationIssue("SHEET_MISSING", "未找到扩频统计 sheet。", fileName)]);
+        }
 
         foreach (uint row in reader.GetPopulatedRows(sheet).Where(row => row >= 4).Order())
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!ProvinceCatalog.TryResolve(
-                    reader.GetText(sheet, $"B{row}"),
-                    out Province province)) continue;
+            string provinceAddress = $"B{row}";
+            string? provinceText = reader.GetText(sheet, provinceAddress);
+            if (!ProvinceCatalog.TryResolve(provinceText, out Province province)) continue;
 
-            bool totalValid = ExtractorSupport.TryReadDecimal(
-                reader, path, sheet, $"D{row}", province, issues, out decimal total);
-            bool ipv6Valid = ExtractorSupport.TryReadDecimal(
-                reader, path, sheet, $"J{row}", province, issues, out decimal ipv6);
+            if (!seen.Add(province))
+            {
+                issues.Add(new ValidationIssue("PROVINCE_DUPLICATE",
+                    $"{sheet} 的省份 {province.Name} 重复。", fileName, sheet, province.Name));
+                continue;
+            }
 
-            if (!(totalValid & ipv6Valid)) continue;
+            int before = issues.Count;
+            bool ok1 = ExtractorSupport.TryReadDecimal(reader, path, sheet, $"D{row}", province, issues, out decimal total);
+            bool ok2 = ExtractorSupport.TryReadDecimal(reader, path, sheet, $"J{row}", province, issues, out decimal ipv6);
+            if (!ok1 || !ok2) continue;
 
             var metrics = new ReadOnlyDictionary<MetricKey, decimal>(
                 new Dictionary<MetricKey, decimal>
                 {
                     [MetricKey.BroadbandTotal] = total,
-                    [MetricKey.BroadbandIpv6] = ipv6,
+                    [MetricKey.BroadbandIpv6] = ipv6
                 });
             ExtractorSupport.AddProvince(values, path, sheet, province, metrics, issues);
         }
 
-        cancellationToken.ThrowIfCancellationRequested();
-        IReadOnlyDictionary<Province, IReadOnlyDictionary<MetricKey, decimal>> resultValues =
-            issues.Count == 0
-                ? ExtractorSupport.AsReadOnly(values)
-                : ExtractorSupport.AsReadOnly(new Dictionary<Province, IReadOnlyDictionary<MetricKey, decimal>>());
-        return new SourceReadResult(SourceWorkbookKind.Table8, resultValues, issues.AsReadOnly());
-    }
-
-    private static string FindProvinceSummarySheet(OpenXmlWorkbookReader reader)
-    {
-        foreach (string name in reader.SheetNames)
-            if (name == "省统计" || name.EndsWith("-省统计", StringComparison.Ordinal))
-                return name;
-        throw new InvalidOperationException("8 表中未找到省统计工作表。");
+        return new SourceReadResult(SourceWorkbookKind.Table8,
+            issues.Count == 0 ? ExtractorSupport.AsReadOnly(values)
+                : ExtractorSupport.AsReadOnly(new Dictionary<Province, IReadOnlyDictionary<MetricKey, decimal>>()),
+            issues.AsReadOnly());
     }
 }
