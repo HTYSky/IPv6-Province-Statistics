@@ -89,7 +89,7 @@ public static class ReportCalculator
         decimal c3AndC9 = c3 + c9;
         decimal d4AndD5AndD7 = d4 + d5 + d7;
         decimal d10AndD11 = d10 + d11;
-        decimal g9 = c9 / c3AndC9;
+        decimal g9 = c3AndC9 == 0 ? 0 : c9 / c3AndC9;
 
         var values = new Dictionary<string, decimal>
         {
