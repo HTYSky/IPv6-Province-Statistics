@@ -31,6 +31,18 @@ public sealed class TemplateReportExporter(TemplateResourceProvider provider) : 
                 cell.DataType = CellValues.Number;
             }
 
+            var calcResult = ReportCalculator.Calculate(input);
+            if (calcResult.Issues.Count > 0)
+                return calcResult.Issues;
+
+            foreach (var (address, value) in calcResult.Values)
+            {
+                var cell = part.Worksheet!.Descendants<Cell>().Single(c =>
+                    string.Equals(c.CellReference?.Value, address, StringComparison.OrdinalIgnoreCase));
+                cell.CellValue = new CellValue(FormattableString.Invariant($"{value}"));
+                cell.DataType = CellValues.Number;
+            }
+
             part.Worksheet!.Save();
         }
         return ReportWorkbookVerifier.Verify(outputPath, input, ReportCalculator.Calculate(input).Values);
@@ -52,3 +64,4 @@ public sealed class TemplateReportExporter(TemplateResourceProvider provider) : 
         }
     }
 }
+using Ipv6ProvinceStatistics.Domain.Reporting;
