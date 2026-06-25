@@ -134,7 +134,6 @@ public sealed class ReportCalculatorTests
 
         FormulaCalculationResult result = ReportCalculator.Calculate(new ProvinceReportInput(values));
 
-        Assert.Empty(result.Values);
         Assert.Equal(37, result.Values.Count);
     }
 
