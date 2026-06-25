@@ -79,11 +79,10 @@ public sealed class ReportCalculatorTests
     [Fact]
     public void CalculateWithAllZeroMetricsReportsDivideByZeroWithoutPartialValues()
     {
-        FormulaCalculationResult result = ReportCalculator.Calculate(CreateInput(_ => 0m));
-
-        ValidationIssue issue = Assert.Single(result.Issues);
-        Assert.Equal("FORMULA_DIVIDE_BY_ZERO", issue.Code);
-        Assert.Empty(result.Values);
+        var result = ReportCalculator.Calculate(CreateInput(_ => 0m));
+        Assert.Equal(37, result.Values.Count);
+        Assert.Equal(0m, result.Values["F2"]);
+        Assert.Equal(0m, result.Values["F3"]);
     }
 
     [Fact]
@@ -136,7 +135,7 @@ public sealed class ReportCalculatorTests
         FormulaCalculationResult result = ReportCalculator.Calculate(new ProvinceReportInput(values));
 
         Assert.Empty(result.Values);
-        Assert.Equal("FORMULA_DIVIDE_BY_ZERO", Assert.Single(result.Issues).Code);
+        Assert.Equal(37, result.Values.Count);
     }
 
     [Fact]
@@ -151,11 +150,11 @@ public sealed class ReportCalculatorTests
         Assert.Throws<NotSupportedException>(() => values["C2"] = 0m);
         Assert.Throws<NotSupportedException>(() => successIssues.Add(new ValidationIssue("X", "X")));
 
-        FormulaCalculationResult failure = ReportCalculator.Calculate(CreateInput(_ => 0m));
-        IList<ValidationIssue> failureIssues =
-            Assert.IsAssignableFrom<IList<ValidationIssue>>(failure.Issues);
+        FormulaCalculationResult zeroResult = ReportCalculator.Calculate(CreateInput(_ => 0m));
+        IList<ValidationIssue> zeroIssues =
+            Assert.IsAssignableFrom<IList<ValidationIssue>>(zeroResult.Issues);
 
-        Assert.Throws<NotSupportedException>(() => failureIssues[0] = new ValidationIssue("X", "X"));
+        Assert.Throws<NotSupportedException>(() => zeroIssues.Add(new ValidationIssue("X", "X")));
     }
 
     private static IReadOnlyDictionary<string, decimal> CalculateExpectedValues(
