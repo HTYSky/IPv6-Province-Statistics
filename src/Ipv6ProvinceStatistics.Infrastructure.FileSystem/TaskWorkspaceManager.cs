@@ -19,9 +19,11 @@ public sealed class TaskWorkspaceManager(string? root = null) : ITaskWorkspaceMa
                 var before = new FileInfo(source);
                 var beforeLength = before.Length; var beforeWrite = before.LastWriteTimeUtc;
                 var destination = Path.Combine(workspaceRoot, $"{snapshots.Count + 1}-{Path.GetFileName(source)}");
-                await using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                await using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-                await input.CopyToAsync(output, token);
+                await using (var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                await using (var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    await input.CopyToAsync(output, token);
+                }
                 var after = new FileInfo(source);
                 if (beforeLength != after.Length || beforeWrite != after.LastWriteTimeUtc)
                     throw new SourceChangedException(source);
