@@ -135,6 +135,7 @@ public sealed class ReportCalculatorTests
         FormulaCalculationResult result = ReportCalculator.Calculate(new ProvinceReportInput(values));
 
         Assert.Equal(37, result.Values.Count);
+        Assert.Empty(result.Issues);
     }
 
     [Fact]
@@ -153,6 +154,9 @@ public sealed class ReportCalculatorTests
         IList<ValidationIssue> zeroIssues =
             Assert.IsAssignableFrom<IList<ValidationIssue>>(zeroResult.Issues);
 
+        IDictionary<string, decimal> zeroValues =
+            Assert.IsAssignableFrom<IDictionary<string, decimal>>(zeroResult.Values);
+        Assert.Throws<NotSupportedException>(() => zeroValues["C2"] = 0m);
         Assert.Throws<NotSupportedException>(() => zeroIssues.Add(new ValidationIssue("X", "X")));
     }
 
