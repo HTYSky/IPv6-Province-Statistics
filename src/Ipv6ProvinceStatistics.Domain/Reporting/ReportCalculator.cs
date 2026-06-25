@@ -83,13 +83,11 @@ public static class ReportCalculator
             .ToArray();
         if (zeroDenominators.Length > 0)
         {
-            IReadOnlyList<ValidationIssue> issues = Array.AsReadOnly(
-            [
+            issues.Add(
                 new ValidationIssue(
                     "FORMULA_DIVIDE_BY_ZERO",
-                    $"模板公式分母为零：{string.Join(", ", zeroDenominators)}。"),
-            ]);
-            return new FormulaCalculationResult(EmptyValues, issues);
+                    $"模板公式分母为零：{string.Join(", ", zeroDenominators)}，对应比率置为 0。"));
+            // Fall through: write zeros for division results
         }
 
         decimal c3AndC9 = c3 + c9;
@@ -119,16 +117,16 @@ public static class ReportCalculator
             ["E11"] = e11,
             ["C3"] = c3,
             ["E3"] = e3,
-            ["F2"] = e2 / c2,
-            ["F3"] = e3 / c3,
-            ["F4"] = e4 / d4,
-            ["F5"] = e5 / d5,
-            ["F6"] = e6 / d6,
-            ["F7"] = e7 / d7,
-            ["F8"] = e8 / d8,
-            ["F9"] = e9 / c9,
-            ["F10"] = e10 / d10,
-            ["F11"] = e11 / d11,
+            ["F2"] = c2 == 0 ? 0 : e2 / c2,
+            ["F3"] = c3 == 0 ? 0 : e3 / c3,
+            ["F4"] = d4 == 0 ? 0 : e4 / d4,
+            ["F5"] = d5 == 0 ? 0 : e5 / d5,
+            ["F6"] = d6 == 0 ? 0 : e6 / d6,
+            ["F7"] = d7 == 0 ? 0 : e7 / d7,
+            ["F8"] = d8 == 0 ? 0 : e8 / d8,
+            ["F9"] = c9 == 0 ? 0 : e9 / c9,
+            ["F10"] = d10 == 0 ? 0 : e10 / d10,
+            ["F11"] = d11 == 0 ? 0 : e11 / d11,
             ["G3"] = c3 / c3AndC9,
             ["G4"] = d4 / d4AndD5AndD7,
             ["G5"] = d5 / d4AndD5AndD7,
