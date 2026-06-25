@@ -83,11 +83,7 @@ public static class ReportCalculator
             .ToArray();
         if (zeroDenominators.Length > 0)
         {
-            issues.Add(
-                new ValidationIssue(
-                    "FORMULA_DIVIDE_BY_ZERO",
-                    $"模板公式分母为零：{string.Join(", ", zeroDenominators)}，对应比率置为 0。"));
-            // Fall through: write zeros for division results
+            // Fall through: zero denominators handled by ternary below
         }
 
         decimal c3AndC9 = c3 + c9;
