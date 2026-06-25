@@ -122,6 +122,57 @@ public sealed class Table1ExtractorTests
     }
 
     [Fact]
+    public async Task UnknownNonEmptyProvinceBreaksGroupInheritanceWithoutLeakingItsText()
+    {
+        const string unknownProvince = "未知区域";
+        string path = TempFiles.Next("省份边界.xlsx");
+        TestWorkbookBuilder.Create(
+            path,
+            new TestSheet(
+                "分省统计表",
+                [
+                    TestCell.SharedText("B4", "北京"),
+                    TestCell.SharedText("C4", "中国联通"),
+                    TestCell.Number("D4", "1"),
+                    TestCell.Number("E4", "2"),
+                    TestCell.Number("G4", "3"),
+                    TestCell.Number("H4", "4"),
+                    TestCell.SharedText("B5", unknownProvince),
+                    TestCell.SharedText("C5", "中国电信"),
+                    TestCell.SharedText("C6", "中国联通"),
+                    TestCell.Number("D6", "5"),
+                    TestCell.Number("E6", "6"),
+                    TestCell.Number("G6", "7"),
+                    TestCell.Number("H6", "8"),
+                ]));
+        ISourceWorkbookReader reader = new OpenXmlSourceWorkbookReader();
+
+        SourceReadResult result = await reader.ReadAsync(
+            path,
+            SourceWorkbookKind.Table1,
+            CancellationToken.None);
+
+        Assert.Empty(result.Values);
+        Assert.Collection(
+            result.Issues,
+            issue =>
+            {
+                Assert.Equal("PROVINCE_INVALID", issue.Code);
+                Assert.Equal("省份边界.xlsx", issue.FileName);
+                Assert.Equal("分省统计表", issue.Sheet);
+                Assert.Null(issue.Province);
+                Assert.Equal("B5", issue.Cell);
+                Assert.Contains("B5", issue.Message, StringComparison.Ordinal);
+                Assert.DoesNotContain(unknownProvince, issue.Message, StringComparison.Ordinal);
+            },
+            issue =>
+            {
+                Assert.Equal("PROVINCE_GROUP_MISSING", issue.Code);
+                Assert.Equal("C6", issue.Cell);
+            });
+    }
+
+    [Fact]
     public async Task DuplicateChinaUnicomRowsForAProvinceReportDuplicateAndReturnNoValues()
     {
         string path = TempFiles.Next("重复.xlsx");
@@ -186,6 +237,40 @@ public sealed class Table1ExtractorTests
         Assert.Equal(1061.5m, metrics[MetricKey.MetroIpv6]);
         Assert.Equal(44.75m, metrics[MetricKey.MobileCoreTotal]);
         Assert.Equal(2212.5m, metrics[MetricKey.MobileCoreIpv6]);
+    }
+
+    [Theory]
+    [InlineData("12,34.5")]
+    [InlineData("1,2,3")]
+    [InlineData("1E-29")]
+    [InlineData("1E-30")]
+    [InlineData("0.12345678901234567890123456789")]
+    public async Task RejectsMalformedOrLossyDecimalText(string invalidValue)
+    {
+        string path = TempFiles.Next("无损数字.xlsx");
+        TestWorkbookBuilder.Create(
+            path,
+            new TestSheet(
+                "分省统计表",
+                [
+                    TestCell.SharedText("B4", "北京"),
+                    TestCell.SharedText("C4", "中国联通"),
+                    TestCell.SharedText("D4", invalidValue),
+                    TestCell.Number("E4", "2"),
+                    TestCell.Number("G4", "3"),
+                    TestCell.Number("H4", "4"),
+                ]));
+        ISourceWorkbookReader reader = new OpenXmlSourceWorkbookReader();
+
+        SourceReadResult result = await reader.ReadAsync(
+            path,
+            SourceWorkbookKind.Table1,
+            CancellationToken.None);
+
+        Assert.Empty(result.Values);
+        ValidationIssue issue = Assert.Single(result.Issues);
+        Assert.Equal("VALUE_INVALID", issue.Code);
+        Assert.Equal("D4", issue.Cell);
     }
 
     [Fact]
