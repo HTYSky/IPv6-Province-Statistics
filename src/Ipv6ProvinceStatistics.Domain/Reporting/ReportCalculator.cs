@@ -123,13 +123,13 @@ public static class ReportCalculator
             ["F9"] = c9 == 0 ? 0 : e9 / c9,
             ["F10"] = d10 == 0 ? 0 : e10 / d10,
             ["F11"] = d11 == 0 ? 0 : e11 / d11,
-            ["G3"] = c3 / c3AndC9,
-            ["G4"] = d4 / d4AndD5AndD7,
-            ["G5"] = d5 / d4AndD5AndD7,
-            ["G7"] = d7 / d4AndD5AndD7,
+            ["G3"] = c3AndC9 == 0 ? 0 : c3 / c3AndC9,
+            ["G4"] = d4AndD5AndD7 == 0 ? 0 : d4 / d4AndD5AndD7,
+            ["G5"] = d4AndD5AndD7 == 0 ? 0 : d5 / d4AndD5AndD7,
+            ["G7"] = d4AndD5AndD7 == 0 ? 0 : d7 / d4AndD5AndD7,
             ["G9"] = g9,
-            ["G10"] = g9 * (d10 / d10AndD11),
-            ["G11"] = g9 * (d11 / d10AndD11),
+            ["G10"] = g9 * (d10AndD11 == 0 ? 0 : d10 / d10AndD11),
+            ["G11"] = g9 * (d10AndD11 == 0 ? 0 : d11 / d10AndD11),
         };
 
         return new FormulaCalculationResult(
